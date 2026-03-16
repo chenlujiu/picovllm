@@ -1,0 +1,17 @@
+[project]
+name = "picovllm"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "torch>=2.4.0",
+    "triton>=3.0.0",
+    "transformers>=4.51.0",
+    # recommend to use pre compile wheel rather than uv sync to install flash-attn
+    #"flash-attn",
+    "xxhash",
+]
+
+[tool.uv.extra-build-dependencies]
+flash-attn = ["torch"]

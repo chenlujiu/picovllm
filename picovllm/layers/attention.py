@@ -20,13 +20,13 @@ def store_kvcache_kernel(
     idx = tl.program_id(0)
     slot = tl.load(slot_mapping_ptr + idx)
     if slot == -1: return
-    key_offsets = idx * key_stride + idx * key_stride + tl.arange(0, D)
-    value_offsets = idx * value_stride + idx * value_stride + tl.arange(0, D)
+    key_offsets = idx * key_stride + tl.arange(0, D)
+    value_offsets = idx * value_stride + tl.arange(0, D)
     key = tl.load(key_ptr + key_offsets)
     value = tl.load(value_ptr + value_offsets)
     cache_offsets = slot * D + tl.arange(0, D)
     tl.store(k_cache_ptr + cache_offsets, key)
-    tl.stroe(v_cache_ptr + cache_offsets, value)
+    tl.store(v_cache_ptr + cache_offsets, value)
 
 def store_kvcache( key: torch.Tensor, value: torch.Tensor, k_cache: torch.Tensor, v_cache: torch.Tensor, slot_mapping: torch.Tensor):
     N, num_heads, head_dim = key.shape
@@ -63,12 +63,12 @@ class Attention(nn.Module):
         if context.is_prefill:
             if context.block_tables is not None:
                 k, v = k_cache, v_cache
-                o = flash_attn_varlen_func(q, k, v,
+            o = flash_attn_varlen_func(q, k, v,
                                        max_seqlen_q=context.max_seqlen_q, cu_seqlens_q=context.cu_seqlens_q,
                                        max_seqlen_k=context.max_seqlen_k, cu_seqlens_k=context.cu_seqlens_k,
                                        softmax_scale=self.scale, causal=True, block_table=context.block_tables)
-            else:  # decode
-                o = flash_attn_with_kvcache(q.unsqueeze(1), k_cache, v_cache,
+        else:  # decode
+            o = flash_attn_with_kvcache(q.unsqueeze(1), k_cache, v_cache,
                                         cache_seqlens=context.context_lens, block_table=context.block_tables,
                                         softmax_scale=self.scale, causal=True)
         return o

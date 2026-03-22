@@ -9,7 +9,7 @@ class RMSNorm(nn.Module):
         hidden_size:int,
         eps: float = 1e-6,
     ) -> None:
-        super().__init()
+        super().__init__()
         self.eps = eps
         self.weight = nn.Parameter(torch.ones(hidden_size))
 

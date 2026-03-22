@@ -5,7 +5,7 @@ from transformers import Qwen3Config
 
 from picovllm.layers.activation import SiluAndMul
 from picovllm.layers.attention import Attention
-from picovllm.layers.embed_head import VocabParallelEmbedding
+from picovllm.layers.embed_head import VocabParallelEmbedding, ParallelLMHead
 from picovllm.layers.layernorm import RMSNorm
 from picovllm.layers.linear import QKVParallelLinear, RowParallelLinear, MergedColumnParallelLinear
 from picovllm.layers.rotary_embedding import get_rope
@@ -56,7 +56,6 @@ class Qwen3Attention(nn.Module):
             rotary_dim=self.head_dim,
             max_position=max_position,
             base=rope_theta,
-            rope_scaling=rope_scaling,
         )
         self.attn = Attention(
             self.num_heads,
@@ -111,7 +110,7 @@ class Qwen3MLP(nn.Module):
 
     def forward(self, x):
         gate_up = self.gate_up_proj(x)
-        x = self.act_fn(gate_up)
+        x = self.act_fin(gate_up)
         x = self.down_proj(x)
         return x
 
@@ -197,7 +196,7 @@ class Qwen3ForCausalLM(nn.Module):
     ) -> None:
         super().__init__()
         self.model = Qwen3Model(config)
-        self.lm_head = QKVParallelLinear(config.vocab_size, config.hidden_size)
+        self.lm_head = ParallelLMHead(config.vocab_size, config.hidden_size)
         if config.tie_word_embeddings:
             self.lm_head.weight.data = self.model.embed_tokens.weight.data
 

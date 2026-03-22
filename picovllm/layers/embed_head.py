@@ -42,7 +42,7 @@ class VocabParallelEmbedding(nn.Module):
         return y
 
 
-class ParaallelLMHead(VocabParallelEmbedding):
+class ParallelLMHead(VocabParallelEmbedding):
 
     def __init__(
         self,

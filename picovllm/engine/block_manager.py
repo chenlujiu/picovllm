@@ -17,8 +17,8 @@ class Block:
         self.hash = hash
         self.token_ids = token_ids
 
-    def reset(self):
-        self.ref_count = 0
+    def claim(self):
+        self.ref_count = 1
         self.hash = -1
         self.token_ids = []
 
@@ -43,7 +43,7 @@ class BlockManager:
     def _allocate_block(self, block_id: int) -> Block:
         block = self.blocks[block_id]
         assert block.ref_count == 0
-        block.reset()
+        block.claim()
         self.free_block_ids.remove(block_id)
         self.used_block_ids.add(block_id)
         return self.blocks[block_id]

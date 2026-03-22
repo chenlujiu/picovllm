@@ -9,6 +9,7 @@ dependencies = [
     "triton>=3.0.0",
     "transformers>=4.51.0",
     # recommend to use pre compile wheel rather than uv sync to install flash-attn
+    # https://github.com/mjun0812/flash-attention-prebuild-wheels
     #"flash-attn",
     "xxhash",
 ]

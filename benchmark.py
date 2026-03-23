@@ -61,12 +61,17 @@ def benchmark(llm, prompts, sampling_params):
             decode_steps += -num_tokens
             decode_time += elapsed
 
+    total_time = prefill_time + decode_time
+    total_prompt = sum(len(p) for p in prompts)
     return {
         "batch_size": len(prompts),
         "prefill_tok_s": prefill_tokens / prefill_time if prefill_time > 0 else 0,
         "decode_tok_s": decode_steps / decode_time if decode_time > 0 else 0,
+        "generated_tok_s": decode_steps / total_time if total_time > 0 else 0,
+        "total_tok_s": (total_prompt + decode_steps) / total_time if total_time > 0 else 0,
         "ttft_ms": (ttft or 0) * 1000,
         "tpot_ms": decode_time / decode_steps * 1000 if decode_steps > 0 else 0,
+        "total_s": total_time,
     }
 
 
@@ -98,11 +103,11 @@ def main():
         prompts = make_prompts(tokenizer, bs, args.prefix_sharing)
         results.append(benchmark(llm, prompts, sp))
 
-    hdr = f"{'Batch':>6} | {'Prefill tok/s':>14} | {'Decode tok/s':>13} | {'TTFT (ms)':>10} | {'TPOT (ms)':>10}"
+    hdr = f"{'Batch':>6} | {'Prefill tok/s':>14} | {'Decode tok/s':>13} | {'Generated tok/s':>16} | {'TTFT (ms)':>10} | {'TPOT (ms)':>10} | {'Total (s)':>10}"
     sep = "-" * len(hdr)
     print(f"\n{sep}\n{hdr}\n{sep}")
     for r in results:
-        print(f"{r['batch_size']:>6} | {r['prefill_tok_s']:>14.1f} | {r['decode_tok_s']:>13.1f} | {r['ttft_ms']:>10.2f} | {r['tpot_ms']:>10.2f}")
+        print(f"{r['batch_size']:>6} | {r['prefill_tok_s']:>14.1f} | {r['decode_tok_s']:>13.1f} | {r['generated_tok_s']:>16.1f} | {r['ttft_ms']:>10.2f} | {r['tpot_ms']:>10.2f} | {r['total_s']:>10.2f}")
     print(sep)
 
 

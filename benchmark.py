@@ -10,33 +10,31 @@ Usage:
 
 import argparse
 import os
+import random
 from time import perf_counter
 
 from transformers import AutoTokenizer
 
 from picovllm import LLM, SamplingParams
 
+random.seed(42)
+
 
 def make_prompts(tokenizer, batch_size, prefix_sharing=False):
     if prefix_sharing:
         system_msg = "You are a helpful, respectful and honest assistant. " * 30
-        return [
-            tokenizer.apply_chat_template(
-                [
-                    {"role": "system", "content": system_msg},
-                    {"role": "user", "content": f"Question {i}: What is {i} times 7?"},
-                ],
-                tokenize=False,
-                add_generation_prompt=True,
-            )
-            for i in range(batch_size)
-        ]
-    prompt = tokenizer.apply_chat_template(
-        [{"role": "user", "content": "Explain what a CPU is"}],
-        tokenize=False,
-        add_generation_prompt=True,
-    )
-    return [prompt] * batch_size
+    prompts = []
+    for i in range(batch_size):
+        target = random.randint(100, 1024)
+        if prefix_sharing:
+            user_msg = f"Question {i}: " + " ".join(f"topic{j}" for j in range(1000))
+            messages = [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}]
+        else:
+            content = " ".join(f"word{i * 1000 + j}" for j in range(1000))
+            messages = [{"role": "user", "content": content}]
+        full = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        prompts.append(tokenizer.encode(full)[:target])
+    return prompts
 
 
 def benchmark(llm, prompts, sampling_params):
@@ -86,12 +84,15 @@ def main():
     llm = LLM(model_path, enforce_eager=args.enforce_eager, tensor_parallel_size=args.tp)
 
     # Warmup
-    sp = SamplingParams(temperature=0.6, max_tokens=4, ignore_eos=True)
+    warmup_prompt = tokenizer.apply_chat_template(
+        [{"role": "user", "content": "Hi"}], tokenize=False, add_generation_prompt=True,
+    )
+    warmup_sp = SamplingParams(temperature=0.6, max_tokens=4, ignore_eos=True)
     for bs in args.batch_sizes:
-        llm.generate(make_prompts(tokenizer, bs), sp, use_tqdm=False)
+        llm.generate([warmup_prompt] * bs, warmup_sp, use_tqdm=False)
 
     # Benchmark
-    sp = SamplingParams(temperature=0.6, max_tokens=128, ignore_eos=True)
+    sp = SamplingParams(temperature=0.6, max_tokens=1024, ignore_eos=True)
     results = []
     for bs in args.batch_sizes:
         prompts = make_prompts(tokenizer, bs, args.prefix_sharing)

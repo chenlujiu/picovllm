@@ -1,25 +1,27 @@
 #!/bin/bash
 set -e
 
+export PYTHONWARNINGS=ignore::UserWarning
 MODEL=${1:-~/huggingface/Qwen3-14B}
 
-echo "=== Benchmark 1: CUDA Graph Acceleration ==="
-uv run python benchmark.py --model $MODEL --batch-sizes 256 --enforce-eager
-uv run python benchmark.py --model $MODEL --batch-sizes 256
+# Baseline: batch size scaling (tp=2, cuda graph on)
+echo "=== Batch Size Scaling (tp=2) ==="
+uv run python benchmark.py --model $MODEL --batch-sizes 1 2 4 8 16 32 64 128 256 --tp 2
 
-echo "=== Benchmark 2: Batch Size Scaling ==="
-uv run python benchmark.py --model $MODEL --batch-sizes 1 2 4 8 16 32 64 128 256
+# Compare: eager mode (no cuda graph)
+echo "=== CUDA Graph: enforce_eager ==="
+uv run python benchmark.py --model $MODEL --batch-sizes 256 --tp 2 --enforce-eager
 
-echo "=== Benchmark 3: Tensor Parallelism ==="
+# Compare: tp=1
+echo "=== Tensor Parallelism: tp=1 ==="
 uv run python benchmark.py --model $MODEL --batch-sizes 256 --tp 1
-uv run python benchmark.py --model $MODEL --batch-sizes 256 --tp 2
 
-echo "=== Benchmark 4: Prefix Cache Deduplication ==="
-uv run python benchmark.py --model $MODEL --batch-sizes 256
-uv run python benchmark.py --model $MODEL --batch-sizes 256 --prefix-sharing
+# Compare: prefix sharing
+echo "=== Prefix Cache: prefix sharing ==="
+uv run python benchmark.py --model $MODEL --batch-sizes 256 --tp 2 --prefix-sharing
 
-echo "=== Benchmark 5: vLLM Comparison ==="
-uv run python benchmark.py --model $MODEL --batch-sizes 256
-uv run python benchmark_vllm.py --model $MODEL --batch-sizes 256
+# Compare: vLLM
+echo "=== vLLM Comparison ==="
+uv run python benchmark_vllm.py --model $MODEL --batch-sizes 256 --tp 2
 
 echo "All benchmarks complete."

@@ -14,7 +14,7 @@ A lightweight LLM inference engine built from scratch in Python/PyTorch. Support
 
 ```bash
 pip install git+https://github.com/chenlujiu/picovllm.git
-huggingface-cli download Qwen/Qwen3-0.6B --local-dir ~/huggingface/Qwen3-0.6B
+hf download Qwen/Qwen3-0.6B --local-dir ~/huggingface/Qwen3-0.6B
 ```
 
 ## Quick Start

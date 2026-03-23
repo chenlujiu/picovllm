@@ -10,14 +10,20 @@ A lightweight LLM inference engine built from scratch in Python/PyTorch. Support
 - Flash Attention 2 integration
 - Qwen3 model support
 
-## Setup
+## Installation
 
 ```bash
-bash scripts/setup.sh
+pip install git+https://github.com/chenlujiu/picovllm.git
+huggingface-cli download Qwen/Qwen3-0.6B --local-dir ~/huggingface/Qwen3-0.6B
 ```
 
 ## Quick Start
 
-```bash
-uv run python scripts/example.py
+```python
+from picovllm import LLM, SamplingParams
+
+llm = LLM("~/huggingface/Qwen3-0.6B")
+outputs = llm.generate(["What is a CPU?"], SamplingParams(max_tokens=128))
+print(outputs[0]["text"])
 ```
+

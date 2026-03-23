@@ -5,19 +5,13 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "picovllm"
 version = "0.1.0"
-description = "Add your description here"
+description = "A lightweight LLM inference engine"
 readme = "README.md"
-requires-python = ">=3.10,<3.13"
+requires-python = ">=3.11,<3.12"
 dependencies = [
-    "torch>=2.4.0",
+    "torch>=2.10.0,<2.11.0",
     "triton>=3.0.0",
     "transformers>=4.51.0",
-    # recommend to use pre compile wheel rather than uv sync to install flash-attn
-    # https://github.com/mjun0812/flash-attention-prebuild-wheels
-    # uv pip install https://github.com/mjun0812/flash-attention-prebuild-wheels/releases/download/v0.9.0/flash_attn-2.8.3+cu128torch2.10-cp311-cp311-linux_x86_64.whl
-    #"flash-attn",
+    "flash-attn @ https://github.com/mjun0812/flash-attention-prebuild-wheels/releases/download/v0.9.0/flash_attn-2.8.3+cu128torch2.10-cp311-cp311-linux_x86_64.whl",
     "xxhash",
 ]
-
-[tool.uv.extra-build-dependencies]
-flash-attn = ["torch"]

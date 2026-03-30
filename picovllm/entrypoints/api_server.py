@@ -44,7 +44,7 @@ async def stream_completion(request_id, request, sampling_params):
     """SSE streaming generator"""
     async for out in engine.generate(request.prompt, sampling_params):
         # 把新 token decode 成文本
-        text = engine.tokenizer.decode([out["new_token_id"]])
+        text = engine.tokenizer.decode([out["token_id"]])
         chunk = CompletionStreamResponse(
             id=request_id,
             created=int(time.time()),
@@ -67,7 +67,7 @@ async def non_stream_completion(request_id, request, sampling_params):
 
     all_token_ids = []
     async for out in engine.generate(request.prompt, sampling_params):
-        all_token_ids.append(out["new_token_id"])
+        all_token_ids.append(out["token_id"])
 
     text = engine.tokenizer.decode(all_token_ids)
     return CompletionResponse(

@@ -14,16 +14,15 @@ class AsyncLLMEngine:
         self.model_name = model
         self.tokenizer = AutoTokenizer.from_pretrained(model)
 
-        # 进程间通信队列
-        self.input_queue = mp.Queue()
-        self.output_queue = mp.Queue()
+        ctx = mp.get_context("spawn")
+        self.input_queue = ctx.Queue()
+        self.output_queue = ctx.Queue()
 
         # 启动子进程
-        self.process = mp.Process(
+        self.process = ctx.Process(
             target=engine_loop,
             args=(model, self.input_queue, self.output_queue),
             kwargs=kwargs,
-            daemon=True,
         )
         self.process.start()
 
@@ -72,7 +71,7 @@ class AsyncLLMEngine:
         await self._ensure_output_loop()
 
         request_id = str(id(prompt))
-        fut = asyncio.get_event_loop().creat_future()
+        fut = asyncio.get_event_loop().create_future()
         self._pending_requests[request_id] = fut
 
         if isinstance(prompt, str):

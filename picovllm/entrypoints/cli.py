@@ -24,11 +24,9 @@ def main():
 
 
 def serve(args):
-    # 先初始化 engine，再启动 uvicorn
-    from picovllm.entrypoints.api_server import app, engine
     from picovllm.engine.async_engine import AsyncLLMEngine
-
     import picovllm.entrypoints.api_server as server_module
+
     server_module.engine = AsyncLLMEngine(
         model=args.model,
         tensor_parallel_size=args.tp,
@@ -36,7 +34,7 @@ def serve(args):
         enforce_eager=args.enforce_eager,
     )
 
-    uvicorn.run(app, host=args.host, port=args.port)
+    uvicorn.run(server_module.app, host=args.host, port=args.port)
 
 
 if __name__ == "__main__":

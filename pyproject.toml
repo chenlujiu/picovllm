@@ -19,3 +19,6 @@ dependencies = [
     "fastapi>=0.135.2",
     "uvicorn>=0.42.0",
 ]
+
+[project.scripts]
+picovllm = "picovllm.entrypoints.cli:main"

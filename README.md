@@ -6,6 +6,7 @@ A lightweight LLM inference engine built from scratch in Python/PyTorch.
 - Paged KV-cache with xxhash-based block deduplication
 - CUDA graph capture/replay for decode acceleration
 - Tensor parallelism via NCCL
+- OpenAI-compatible API server with streaming support
 - Qwen3 model support
 
 ## Installation
@@ -23,6 +24,18 @@ from picovllm import LLM, SamplingParams
 llm = LLM("~/huggingface/Qwen3-0.6B")
 outputs = llm.generate(["What is a CPU?"], SamplingParams(max_tokens=128))
 print(outputs[0]["text"])
+```
+
+## Online Serving
+
+```bash
+picovllm serve ~/huggingface/Qwen3-0.6B --port 8000 --tp 2
+```
+
+```bash
+curl http://localhost:8000/v1/completions \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "What is a CPU?", "max_tokens": 128, "stream": true}'
 ```
 
 ## Benchmark

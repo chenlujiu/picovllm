@@ -10,8 +10,15 @@ import requests
 def main():
     url = "http://localhost:8000/v1/completions"
 
-
-
+    # 非流式
+    resp = requests.post(url, json={
+        "prompt": "introduce yourself",
+        "max_tokens": 256,
+        "temperature": 0,
+        "stream": False,
+    })
+    print("=== Non-streaming ===")
+    print(resp.json()["choices"][0]["text"])
 
     # 流式
     print("\n=== Streaming ===")

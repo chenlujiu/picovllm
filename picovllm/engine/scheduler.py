@@ -1,8 +1,15 @@
 from collections import deque
+from dataclasses import dataclass
 
 from picovllm.config import Config
 from picovllm.engine.sequence import Sequence, SequenceStatus
 from picovllm.engine.block_manager import BlockManager
+
+@dataclass
+class SchedulerOutput:
+    seqs: list[Sequence]
+    num_scheduled_tokens: list[int]
+    token_ids_list: list[list[int]]
 
 
 class Scheduler:
@@ -21,54 +28,88 @@ class Scheduler:
     def add(self, seq: Sequence):
         self.waiting.append(seq)
 
-    def schedule(self) -> tuple[list[Sequence], bool]:
-        # prefill
+    def schedule(self) -> SchedulerOutput:
+        budget = self.max_num_batched_tokens
         scheduled_seqs = []
-        num_seqs = 0
-        num_batched_tokens = 0
-        while self.waiting and num_seqs < self.max_num_seqs:
-            seq = self.waiting[0]
-            if num_batched_tokens + len(seq) > self.max_num_batched_tokens or not self.block_manager.can_allocate(seq):
+        num_scheduled_tokens = []
+        token_ids_list = []
+
+        # running
+        temp_running = []
+        while self.running:
+            if budget == 0:
+                temp_running.extend(self.running)
+                self.running.clear()
                 break
-            num_seqs += 1
+
+            seq = self.running.popleft()
+            num_new = seq.num_tokens - seq.num_computed_tokens
+            num_new = min(num_new, budget)
+
+            is_decode = (seq.num_computed_tokens >= seq.num_prompt_tokens)
+            if is_decode:
+                # decode phase might need new block
+                if num_new == 0 or not self.block_manager.can_append(seq):
+                    self.preempt(seq)
+                    continue
+                self.block_manager.update_blocks(seq)
+                token_ids_list.append([seq.last_token])
+            else:
+                # prefill phase blocks have all set
+                start = seq.num_computed_tokens
+                token_ids_list.append(seq.token_ids[start:start + num_new])
+
+            budget -= num_new
+            scheduled_seqs.append(seq)
+            num_scheduled_tokens.append(num_new)
+            temp_running.append(seq)
+        self.running = deque(temp_running)
+
+        # waiting
+        while self.waiting and budget > 0:
+            if len(scheduled_seqs) >= self.max_num_seqs:
+                break
+            seq = self.waiting[0]
+            if not self.block_manager.can_allocate(seq):
+                break
             self.block_manager.allocate(seq)
-            num_batched_tokens += len(seq) - seq.num_cached_tokens
+
+            remaining = len(seq) - seq.num_computed_tokens
+            chunk_size = min(remaining, budget)
+            budget -= chunk_size
+
+            start = seq.num_computed_tokens
+            token_ids_list.append(seq.token_ids[start:start+chunk_size])
+
             seq.status = SequenceStatus.RUNNING
             self.waiting.popleft()
             self.running.append(seq)
             scheduled_seqs.append(seq)
-        if scheduled_seqs:
-            return scheduled_seqs, True
+            num_scheduled_tokens.append(chunk_size)
 
-        #decode
-        while self.running and num_seqs < self.max_num_seqs:
-            seq = self.running.popleft()
-            while not self.block_manager.can_append(seq):
-                if self.running:
-                    self.preempt(self.running.pop())
-                else:
-                    self.preempt(seq)
-                    break
-            else:
-                num_seqs += 1
-                self.block_manager.update_blocks(seq)
-                scheduled_seqs.append(seq)
-        assert scheduled_seqs
-        self.running.extendleft(reversed(scheduled_seqs))
-        return scheduled_seqs, False
+        return SchedulerOutput(scheduled_seqs, num_scheduled_tokens, token_ids_list)
 
     def preempt(self, seq: Sequence):
         seq.status = SequenceStatus.WAITING
         self.block_manager.deallocate(seq)
         self.waiting.appendleft(seq)
 
-    def postprocess(self, seqs: list[Sequence], token_ids: list[int]) -> list[bool]:
-        for seq, token_id in zip(seqs, token_ids):
-            seq.append_token(token_id)
-            if (not seq.ignore_eos and token_id == self.eos) or seq.num_completion_tokens == seq.max_tokens:
-                seq.status = SequenceStatus.FINISHED
-                self.block_manager.deallocate(seq)
-                self.running.remove(seq)
+    def postprocess(self, output: SchedulerOutput, token_ids: list[int]):
+        token_idx = 0
+        for seq, nst in zip(output.seqs, output.num_scheduled_tokens):
+            seq.num_computed_tokens += nst
+
+            prefill_complete = (seq.num_computed_tokens >= seq.num_prompt_tokens)
+            if prefill_complete:
+                token_id = token_ids[token_idx]
+                seq.append_token(token_id)
+                token_idx += 1
+                if (not seq.ignore_eos and token_id == self.eos) or seq.num_completion_tokens == seq.max_tokens:
+                    seq.status= SequenceStatus.FINISHED
+                    self.block_manager.deallocate(seq)
+                    self.running.remove(seq)
+            else:
+                token_idx += 1
 
 
 

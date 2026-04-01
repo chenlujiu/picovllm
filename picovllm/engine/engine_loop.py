@@ -35,19 +35,20 @@ def _process_engine_step(engine, output_queue):
 
     对应 vLLM EngineCoreProc._process_engine_step (core.py:1177)
     """
-    seqs, is_prefill = engine.scheduler.schedule()
-    token_ids = engine.model_runner.call("run", seqs, is_prefill)
-    engine.scheduler.postprocess(seqs, token_ids)
+    output = engine.scheduler.schedule()
+    token_ids = engine.model_runner.call("run", output)
+    engine.scheduler.postprocess(output, token_ids)
 
     # 收集输出发给主进程
-    if not is_prefill and token_ids:
-        for seq, tid in zip(seqs, token_ids):
-            output_queue.put({
-                "type": "token",
-                "seq_id": seq.seq_id,
-                "token_id": tid,
-                "finished": seq.is_finished,
-            })
+    if token_ids:
+        for seq in output.seqs:
+            if seq.num_completion_tokens > 0:
+                output_queue.put({
+                    "type": "token",
+                    "seq_id": seq.seq_id,
+                    "token_id": seq.last_token,
+                    "finished": seq.is_finished,
+                })
 
 
 def _handle_msg(engine, msg, output_queue):

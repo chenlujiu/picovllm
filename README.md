@@ -4,6 +4,7 @@ A lightweight LLM inference engine built from scratch in Python/PyTorch.
 ## Features
 
 - Paged KV-cache with xxhash-based block deduplication
+- Chunked prefill schedule
 - CUDA graph capture/replay for decode acceleration
 - Tensor parallelism via NCCL
 - OpenAI-compatible API server with streaming support
